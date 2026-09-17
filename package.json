@@ -1,0 +1,19 @@
+{
+  "name": "chiply",
+  "version": "1.0.0",
+  "description": "PWA chip tracker for Texas Hold'em with physical cards",
+  "type": "module",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "icons": "node scripts/gen-icons.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  }
+}

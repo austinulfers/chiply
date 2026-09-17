@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b3d2e" />
+  <meta name="description" content="Track poker chips on your phone while playing with physical cards." />
+  <title>Chiply — Poker Chip Tracker</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ============ HOME ============ -->
+    <section id="view-home" class="view">
+      <header class="home-header">
+        <div class="logo">🪙</div>
+        <h1>Chiply</h1>
+        <p class="tagline">Chips on your phone. Cards on the table.</p>
+      </header>
+
+      <div id="resume-banner" class="card resume hidden">
+        <p>You have a seat in room <strong id="resume-code"></strong></p>
+        <button id="btn-resume" class="btn primary">Rejoin table</button>
+      </div>
+
+      <div class="card">
+        <label for="name-input">Your name</label>
+        <input id="name-input" type="text" maxlength="20" placeholder="e.g. Austin" autocomplete="nickname" enterkeyhint="done" />
+      </div>
+
+      <div class="card">
+        <h2>Join a room</h2>
+        <div class="row">
+          <input id="join-code" type="text" maxlength="4" placeholder="CODE" autocapitalize="characters" autocomplete="off" spellcheck="false" enterkeyhint="go" />
+          <button id="btn-join" class="btn primary">Join</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Host a room</h2>
+        <div class="grid3">
+          <label>Stack
+            <input id="opt-stack" type="number" inputmode="numeric" value="1000" min="100" />
+          </label>
+          <label>Small blind
+            <input id="opt-sb" type="number" inputmode="numeric" value="5" min="1" />
+          </label>
+          <label>Big blind
+            <input id="opt-bb" type="number" inputmode="numeric" value="10" min="2" />
+          </label>
+        </div>
+        <div class="grid2">
+          <label>Chip value
+            <select id="opt-denom">
+              <option value="none" selected>Plain chips</option>
+              <option value="cents">Pennies (1 = 1&cent;)</option>
+              <option value="dollars">Dollars (1 = $1)</option>
+            </select>
+          </label>
+          <label>Show chips as
+            <select id="opt-chipstyle">
+              <option value="numeric" selected>Numbers</option>
+              <option value="visual">Chip graphics</option>
+            </select>
+          </label>
+        </div>
+        <button id="btn-create" class="btn primary wide">Create private room</button>
+      </div>
+
+      <p id="home-error" class="error hidden"></p>
+    </section>
+
+    <!-- ============ TABLE ============ -->
+    <section id="view-table" class="view hidden">
+      <header class="table-header">
+        <button id="btn-leave" class="btn ghost small" title="Leave table">✕</button>
+        <button id="room-code-btn" class="room-code" title="Tap to copy invite">
+          <span id="room-code-text">----</span> <span class="copy-hint">⧉</span>
+        </button>
+        <div id="conn-dot" class="conn-dot" title="Connection"></div>
+      </header>
+
+      <div class="pot-area">
+        <div id="street-label" class="street">Waiting for players…</div>
+        <div class="pot">
+          <span class="pot-label">POT</span>
+          <span id="pot-amount" class="pot-amount">0</span>
+        </div>
+        <div id="hand-info" class="hand-info"></div>
+      </div>
+
+      <ul id="players" class="players"></ul>
+
+      <!-- Host: start hand / showdown award -->
+      <div id="host-panel" class="host-panel hidden"></div>
+
+      <!-- Action bar (only when it's your turn) -->
+      <div id="action-bar" class="action-bar hidden">
+        <div class="action-row">
+          <button id="btn-fold" class="btn danger">Fold</button>
+          <button id="btn-check" class="btn">Check</button>
+          <button id="btn-call" class="btn">Call</button>
+          <button id="btn-raise-open" class="btn primary">Raise</button>
+        </div>
+        <div id="raise-panel" class="raise-panel hidden">
+          <div class="raise-readout">
+            <button id="raise-minus" class="btn round">−</button>
+            <div class="raise-to">
+              <span class="raise-to-label">Raise to</span>
+              <input id="raise-amount" type="number" inputmode="numeric" />
+            </div>
+            <button id="raise-plus" class="btn round">+</button>
+          </div>
+          <input id="raise-slider" type="range" />
+          <div class="raise-presets">
+            <button class="btn tiny" data-preset="min">Min</button>
+            <button class="btn tiny" data-preset="half">½ pot</button>
+            <button class="btn tiny" data-preset="pot">Pot</button>
+            <button class="btn tiny" data-preset="allin">All-in</button>
+          </div>
+          <div class="action-row">
+            <button id="btn-raise-cancel" class="btn ghost">Back</button>
+            <button id="btn-raise-confirm" class="btn primary">Raise</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="my-status" class="my-status hidden"></div>
+
+      <details class="log-panel">
+        <summary>Table log</summary>
+        <ul id="log"></ul>
+      </details>
+
+      <div class="table-footer">
+        <button id="btn-sitout" class="btn ghost small">Sit out</button>
+        <button id="btn-host-tools" class="btn ghost small hidden">Host tools</button>
+      </div>
+    </section>
+
+    <!-- Host tools sheet -->
+    <div id="sheet-backdrop" class="sheet-backdrop hidden">
+      <div id="host-sheet" class="sheet">
+        <h3>Host tools</h3>
+        <div class="sheet-section">
+          <h4>Blinds</h4>
+          <div class="row">
+            <input id="tool-sb" type="number" inputmode="numeric" placeholder="SB" />
+            <input id="tool-bb" type="number" inputmode="numeric" placeholder="BB" />
+            <button id="tool-set-blinds" class="btn">Set</button>
+          </div>
+        </div>
+        <div class="sheet-section">
+          <h4>Rebuy / add chips</h4>
+          <div class="row">
+            <select id="tool-player"></select>
+            <input id="tool-chips" type="number" inputmode="numeric" placeholder="Amount" />
+            <button id="tool-add-chips" class="btn">Add</button>
+          </div>
+        </div>
+        <div class="sheet-section">
+          <h4>Chip display</h4>
+          <div class="row">
+            <select id="tool-denom">
+              <option value="none">Plain chips</option>
+              <option value="cents">Pennies (1 = 1&cent;)</option>
+              <option value="dollars">Dollars (1 = $1)</option>
+            </select>
+            <select id="tool-chipstyle">
+              <option value="numeric">Numbers</option>
+              <option value="visual">Chip graphics</option>
+            </select>
+          </div>
+        </div>
+        <div class="sheet-section">
+          <h4>Away player</h4>
+          <button id="tool-force-fold" class="btn danger wide">Fold current player's hand</button>
+        </div>
+        <button id="sheet-close" class="btn ghost wide">Close</button>
+      </div>
+    </div>
+
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
