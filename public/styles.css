@@ -28,7 +28,13 @@ body {
   min-height: 100dvh;
 }
 
-#app { max-width: 520px; margin: 0 auto; padding: 16px 16px calc(24px + var(--safe-b)); }
+#app {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 16px 16px calc(24px + var(--safe-b));
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+}
 
 .hidden { display: none !important; }
 
@@ -68,7 +74,12 @@ body {
   padding: 16px;
   margin-bottom: 14px;
 }
-.card h2 { font-size: 16px; margin-bottom: 10px; color: var(--ink-dim); text-transform: uppercase; letter-spacing: 1px; }
+.card h2, .card .card-heading {
+  display: block;
+  font-size: 16px; font-weight: 700;
+  margin-bottom: 10px; color: var(--ink-dim);
+  text-transform: uppercase; letter-spacing: 1px;
+}
 .card label { display: block; font-size: 13px; color: var(--ink-dim); margin-bottom: 6px; }
 
 input, select {
@@ -85,6 +96,7 @@ input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: -1px
 .row { display: flex; gap: 8px; align-items: stretch; }
 .row .btn { flex: none; }
 .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
 #join-code { text-transform: uppercase; letter-spacing: 6px; font-weight: 700; text-align: center; font-size: 20px; }
 
 .resume { border-color: var(--gold); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -116,6 +128,35 @@ input:focus, select:focus { outline: 2px solid var(--gold); outline-offset: -1px
 .pot-label { font-size: 11px; letter-spacing: 3px; color: var(--gold); }
 .pot-amount { font-size: 44px; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; line-height: 1.1; }
 .hand-info { color: var(--ink-dim); font-size: 13px; min-height: 18px; margin-top: 2px; }
+.pot-chips { display: flex; justify-content: center; margin-top: 6px; }
+.pot-breakdown {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
+  gap: 6px; margin-top: 8px;
+}
+.pot-pill {
+  background: var(--card); border: 1px solid var(--card-edge);
+  color: var(--gold); font-weight: 700; font-size: 13px;
+  border-radius: 999px; padding: 5px 12px; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.pot-pill.open { border-color: var(--gold); }
+.pot-pill.awarded { color: var(--ink-dim); text-decoration: line-through; }
+.pot-detail { flex-basis: 100%; font-size: 12px; color: var(--ink-dim); }
+
+/* ---------- chip graphics ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+.chip-group { display: inline-flex; align-items: center; }
+.chip {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2.5px dashed #ffffff88;
+  box-shadow: 0 1px 2px #0008;
+  margin-left: -6px;
+}
+.chip:first-child { margin-left: 0; }
+.chips.big .chip { width: 20px; height: 20px; border-width: 3.5px; margin-left: -8px; }
+.chip-count { font-size: 11px; font-weight: 700; color: var(--ink-dim); margin-left: 3px; }
+.chips.big .chip-count { font-size: 13px; color: var(--ink); }
+.p-stack .chips { justify-content: flex-end; }
 
 /* ---------- players ---------- */
 .players { list-style: none; display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
@@ -198,6 +239,19 @@ input[type="range"] { accent-color: var(--gold); width: 100%; }
   font-size: 14px;
 }
 
+/* ---------- seat arranging ---------- */
+.player.editing { grid-template-columns: auto 1fr auto auto; }
+.seat-controls { display: flex; flex-direction: column; gap: 4px; }
+.seat-btn { width: 34px; height: 34px; font-size: 13px; }
+.seat-num {
+  position: absolute; top: -5px; left: -5px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--gold); color: #241a02;
+  font-size: 11px; font-weight: 800;
+  display: grid; place-items: center;
+}
+.seat-hint { font-size: 13px; color: var(--ink-dim); text-align: center; }
+
 /* ---------- host panel ---------- */
 .host-panel { margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
 .pot-award {
@@ -226,9 +280,81 @@ input[type="range"] { accent-color: var(--gold); width: 100%; }
   border-radius: 20px 20px 0 0; padding: 20px 16px calc(20px + var(--safe-b));
   width: 100%; max-width: 520px;
   display: flex; flex-direction: column; gap: 14px;
+  max-height: calc(100dvh - 24px); overflow-y: auto;
 }
 .sheet h3 { text-align: center; }
 .sheet-section h4 { font-size: 13px; color: var(--ink-dim); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+
+/* ---------- street-advance overlay ---------- */
+.street-overlay {
+  position: fixed; inset: 0; z-index: 40;
+  display: grid; place-items: center;
+  pointer-events: none;
+}
+.street-overlay-inner {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  background: radial-gradient(ellipse at center, #0e4938f2, #072a20f2);
+  border: 1px solid var(--gold);
+  border-radius: 20px;
+  padding: 22px 34px;
+  box-shadow: 0 10px 50px #000c;
+  animation: ov-pop 2.6s ease forwards;
+}
+@keyframes ov-pop {
+  0% { opacity: 0; transform: scale(0.92); }
+  10% { opacity: 1; transform: scale(1); }
+  85% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.98); }
+}
+.pot-good { font-size: 15px; font-weight: 800; letter-spacing: 3px; color: var(--gold); }
+.street-sub { font-size: 14px; color: var(--ink); }
+.sweep-chip {
+  position: absolute; top: 50%; left: 50%;
+  width: 14px; height: 14px; margin: -7px;
+  border-radius: 50%;
+  background: var(--gold);
+  border: 2.5px dashed #fff8;
+  animation: chip-converge 0.8s ease-in forwards;
+}
+@keyframes chip-converge {
+  0% { transform: translate(var(--dx), var(--dy)) scale(1); opacity: 0.95; }
+  70% { transform: translate(0, 0) scale(0.9); opacity: 0.9; }
+  100% { transform: translate(0, 0) scale(0.3); opacity: 0; }
+}
+.flip-cards { display: flex; gap: 8px; }
+.flip-card {
+  width: 48px; height: 68px;
+  perspective: 320px;
+  animation: card-deal 0.4s cubic-bezier(0.2, 0.8, 0.3, 1.15) backwards;
+}
+@keyframes card-deal {
+  from { opacity: 0; transform: translateY(26px) rotate(4deg); }
+}
+.flip-inner {
+  width: 100%; height: 100%; position: relative;
+  transform-style: preserve-3d;
+  animation: card-flip 0.55s ease forwards;
+}
+@keyframes card-flip { to { transform: rotateY(180deg); } }
+.face {
+  position: absolute; inset: 0;
+  border-radius: 7px;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  display: grid; place-items: center;
+  box-shadow: 0 3px 10px #0009;
+}
+.face.back {
+  background: repeating-linear-gradient(45deg, #a63237 0 4px, #8c272c 4px 8px);
+  border: 3px solid #f6f1e4;
+}
+.face.front {
+  transform: rotateY(180deg);
+  background: #f6f1e4;
+  color: #444;
+  font-weight: 800; font-size: 26px;
+  border: 1px solid #ccc;
+}
 
 /* ---------- toast ---------- */
 .toast {
@@ -241,6 +367,47 @@ input[type="range"] { accent-color: var(--gold); width: 100%; }
 .toast.err { background: #4b1113; border-color: var(--red); }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, -8px); } }
 
-@media (min-width: 700px) {
+@media (min-width: 700px) and (min-height: 620px) {
   .pot-amount { font-size: 54px; }
+}
+
+/* ---------- landscape phones: players left, pot & controls right ---------- */
+@media (orientation: landscape) and (max-height: 600px) {
+  #app { max-width: 980px; padding-top: 8px; }
+
+  /* Home: two-column cards; stretch keeps side-by-side card heights equal */
+  #view-home { display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; }
+  .home-header, .resume, .error { grid-column: 1 / -1; }
+  .home-header { padding: 8px 0 10px; }
+  .logo { font-size: 30px; display: inline; }
+  .home-header h1 { display: inline; font-size: 26px; margin-left: 8px; vertical-align: middle; }
+  #view-home > .card:nth-child(5) { grid-column: 1 / -1; }
+
+  /* Table: grid rail */
+  #view-table {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) clamp(280px, 46vw, 380px);
+    column-gap: 16px;
+    grid-template-areas:
+      "header  pot"
+      "players host"
+      "players action"
+      "players status"
+      "players log"
+      "footer  footer";
+  }
+  .table-header { grid-area: header; align-self: start; margin-bottom: 6px; }
+  .pot-area { grid-area: pot; padding: 0 0 10px; }
+  .pot { flex-direction: row; align-items: baseline; gap: 8px; }
+  .pot-amount { font-size: 30px; }
+  #players { grid-area: players; overflow-y: auto; max-height: calc(100dvh - 118px); padding-right: 2px; }
+  .host-panel { grid-area: host; }
+  .action-bar { grid-area: action; position: static; }
+  .my-status { grid-area: status; margin-bottom: 8px; }
+  .log-panel { grid-area: log; align-self: start; margin: 0 0 8px; }
+  #log { max-height: 100px; }
+  .table-footer { grid-area: footer; margin-top: 6px; }
+
+  .action-row .btn { padding: 11px 6px; }
+  .raise-panel { gap: 8px; }
 }

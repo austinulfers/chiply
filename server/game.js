@@ -283,7 +283,7 @@ function goToShowdown(room, ranOut) {
   maybeFinishShowdown(room);
 }
 
-function computePots(room) {
+export function computePots(room) {
   const h = room.hand;
   const contributors = h.order.filter((id) => h.totalCommitted[id] > 0);
   const levels = [...new Set(contributors.map((id) => h.totalCommitted[id]))].sort((a, b) => a - b);

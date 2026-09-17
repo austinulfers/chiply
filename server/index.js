@@ -9,7 +9,7 @@ import {
 } from './rooms.js';
 import {
   startHand, applyAction, awardPot, forceFold, canStartHand,
-  potTotal, callAmount, canRaise, minRaiseTo, log,
+  potTotal, callAmount, canRaise, minRaiseTo, log, computePots,
 } from './game.js';
 
 const PORT = process.env.PORT || 3000;
@@ -61,6 +61,7 @@ function viewFor(room, playerId) {
     lastHand: room.lastHand,
     log: room.log.slice(-25),
     canStart: canStartHand(room),
+    undoLabel: undoStacks.get(room.code)?.at(-1)?.label ?? null,
     you: playerId,
     players: room.players.map((p) => ({
       id: p.id,
@@ -83,7 +84,8 @@ function viewFor(room, playerId) {
       currentBet: h.currentBet,
       toActId: h.toActId,
       pot: potTotal(room),
-      pots: h.pots,
+      // Live preview of main/side pots once someone is all-in.
+      pots: h.pots ?? (h.allIn.length ? computePots(room) : null),
       ranOut: h.ranOut ?? false,
     },
     actions,
@@ -95,6 +97,36 @@ function broadcast(room) {
   save();
   const conns = socketsFor(room.code);
   for (const [pid, ws] of conns) send(ws, 'state', { state: viewFor(room, pid) });
+}
+
+// Undo history lives in memory only; snapshots would bloat the persisted JSON.
+const undoStacks = new Map(); // code -> [{ label, snap }]
+const UNDO_LIMIT = 10;
+
+function takeSnapshot(room, label) {
+  const stack = undoStacks.get(room.code) ?? [];
+  stack.push({
+    label,
+    snap: structuredClone({
+      players: room.players,
+      hand: room.hand,
+      dealerId: room.dealerId,
+      lastHand: room.lastHand,
+      handCounter: room.handCounter,
+    }),
+  });
+  if (stack.length > UNDO_LIMIT) stack.shift();
+  undoStacks.set(room.code, stack);
+}
+
+function withUndo(room, label, fn) {
+  takeSnapshot(room, label);
+  try {
+    return fn();
+  } catch (err) {
+    undoStacks.get(room.code)?.pop();
+    throw err;
+  }
 }
 
 const hostTimers = new Map(); // code -> timeout
@@ -180,6 +212,7 @@ function handle(ws, msg) {
     const name = sanitizeName(msg.name);
     if (!playerId || !name) throw new Error('Name required');
     const room = createRoom(name, playerId, msg.settings || {});
+    undoStacks.delete(room.code); // room codes can be reissued after deletion
     attach(ws, room, playerId);
     log(room, `${name} created the room`);
     send(ws, 'joined', { code: room.code });
@@ -228,7 +261,10 @@ function handle(ws, msg) {
       room.hostId = (room.players.find((x) => x.connected) || room.players[0]).id;
       log(room, `${room.players.find((x) => x.id === room.hostId).name} is now the host`);
     }
-    if (room.players.length === 0) rooms.delete(room.code);
+    if (room.players.length === 0) {
+      rooms.delete(room.code);
+      undoStacks.delete(room.code);
+    }
     send(ws, 'left');
     save();
     return room.players.length && broadcast(room);
@@ -236,26 +272,54 @@ function handle(ws, msg) {
 
   if (type === 'startHand') {
     const { room } = requireHost(ws);
-    startHand(room);
+    withUndo(room, 'hand start', () => startHand(room));
     return broadcast(room);
   }
 
   if (type === 'action') {
-    const { room } = requireJoined(ws);
-    applyAction(room, ws.playerId, msg.action, msg.amount);
+    const { room, p } = requireJoined(ws);
+    withUndo(room, `${p.name}: ${msg.action}`, () => applyAction(room, ws.playerId, msg.action, msg.amount));
     return broadcast(room);
   }
 
   if (type === 'awardPot') {
     const { room } = requireHost(ws);
-    awardPot(room, Number(msg.potIndex), Array.isArray(msg.winners) ? msg.winners : []);
+    withUndo(room, 'pot award', () => awardPot(room, Number(msg.potIndex), Array.isArray(msg.winners) ? msg.winners : []));
     return broadcast(room);
   }
 
   if (type === 'forceFold') {
     const { room } = requireHost(ws);
-    forceFold(room, String(msg.targetId));
+    withUndo(room, 'forced fold', () => forceFold(room, String(msg.targetId)));
     log(room, '(folded by host — player away)');
+    return broadcast(room);
+  }
+
+  if (type === 'undo') {
+    const { room } = requireHost(ws);
+    const stack = undoStacks.get(room.code);
+    if (!stack?.length) throw new Error('Nothing to undo');
+    const { label, snap } = stack.pop();
+    const conns = socketsFor(room.code);
+    const current = new Map(room.players.map((p) => [p.id, p]));
+    // Restore chips/hand; keep live presence, names, and sit-out prefs; keep players who joined since.
+    room.players = snap.players.map((sp) => {
+      const cur = current.get(sp.id);
+      return {
+        ...sp,
+        connected: conns.has(sp.id),
+        name: cur?.name ?? sp.name,
+        sittingOut: cur?.sittingOut ?? sp.sittingOut,
+      };
+    });
+    for (const cur of current.values()) {
+      if (!room.players.some((p) => p.id === cur.id)) room.players.push(cur);
+    }
+    room.hand = snap.hand;
+    room.dealerId = snap.dealerId;
+    room.lastHand = snap.lastHand;
+    room.handCounter = snap.handCounter;
+    log(room, `Host undid: ${label}`);
     return broadcast(room);
   }
 
@@ -276,8 +340,24 @@ function handle(ws, msg) {
     if (room.hand?.order.includes(target.id)) throw new Error('Wait until the hand ends');
     const amount = Math.floor(Number(msg.amount));
     if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) throw new Error('Invalid amount');
+    takeSnapshot(room, `rebuy for ${target.name}`);
     target.stack += amount;
     log(room, `Host added ${amount} chips to ${target.name} (rebuy)`);
+    return broadcast(room);
+  }
+
+  if (type === 'reorderSeats') {
+    const { room } = requireHost(ws);
+    if (room.hand) throw new Error('Wait until the hand ends');
+    const order = Array.isArray(msg.order) ? msg.order.map(String) : [];
+    const ids = room.players.map((p) => p.id);
+    const valid = order.length === ids.length
+      && new Set(order).size === ids.length
+      && order.every((id) => ids.includes(id));
+    if (!valid) throw new Error('Invalid seat order');
+    takeSnapshot(room, 'seat change');
+    room.players.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    log(room, 'Host rearranged the seats to match the table');
     return broadcast(room);
   }
 

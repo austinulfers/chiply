@@ -96,6 +96,7 @@ await waitFor(A, (s) => s.hand?.toActId === 'smoke-a' && s.hand.currentBet === 4
 check('min raise-to is 80', A.state.actions.minRaiseTo === 80);
 A.send({ type: 'action', action: 'allin' });
 await waitFor(B, (s) => s.hand?.toActId === 'smoke-b' && s.hand.currentBet === 470, 'Ann all-in 470');
+check('live pot preview once all-in', Array.isArray(B.state.hand.pots) && B.state.hand.pots.length >= 1);
 B.send({ type: 'action', action: 'fold' });
 await waitFor(C, (s) => s.hand?.toActId === 'smoke-c', 'Cy to act facing all-in');
 C.send({ type: 'action', action: 'call' });

@@ -1,5 +1,6 @@
 // Chiply service worker — cache the app shell; live game data flows over WebSocket only.
-const CACHE = 'chiply-v1';
+// Bump the version whenever shell assets change so clients refresh their cache.
+const CACHE = 'chiply-v9';
 const SHELL = [
   '/',
   '/index.html',

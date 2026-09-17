@@ -30,7 +30,7 @@
       </div>
 
       <div class="card">
-        <label for="name-input">Your name</label>
+        <label for="name-input" class="card-heading">Your name</label>
         <input id="name-input" type="text" maxlength="20" placeholder="e.g. Austin" autocomplete="nickname" enterkeyhint="done" />
       </div>
 
@@ -92,6 +92,8 @@
           <span class="pot-label">POT</span>
           <span id="pot-amount" class="pot-amount">0</span>
         </div>
+        <div id="pot-chips" class="pot-chips hidden"></div>
+        <div id="pot-breakdown" class="pot-breakdown hidden"></div>
         <div id="hand-info" class="hand-info"></div>
       </div>
 
@@ -140,6 +142,7 @@
 
       <div class="table-footer">
         <button id="btn-sitout" class="btn ghost small">Sit out</button>
+        <button id="btn-alerts" class="btn ghost small" title="Turn alerts">🔔 On</button>
         <button id="btn-host-tools" class="btn ghost small hidden">Host tools</button>
       </div>
     </section>
@@ -181,6 +184,10 @@
         <div class="sheet-section">
           <h4>Away player</h4>
           <button id="tool-force-fold" class="btn danger wide">Fold current player's hand</button>
+        </div>
+        <div class="sheet-section">
+          <h4>Fix a mistake</h4>
+          <button id="tool-undo" class="btn wide">Undo</button>
         </div>
         <button id="sheet-close" class="btn ghost wide">Close</button>
       </div>
