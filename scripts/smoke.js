@@ -1,7 +1,8 @@
 // End-to-end smoke test: full hand with betting, all-in side pot, award, and reconnect.
+// `npm test` runs it against a throwaway server; run it directly to hit a live one.
 import WebSocket from 'ws';
 
-const URL = 'ws://localhost:3000/ws';
+const URL = process.env.SMOKE_URL || 'ws://localhost:3000/ws';
 const results = [];
 let failed = 0;
 

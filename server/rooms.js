@@ -4,7 +4,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 
-const DATA_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'data');
+// On the VPS the checkout is read-only to the app, so the unit points this at /var/lib/chiply.
+const DATA_DIR = process.env.DATA_DIR || join(dirname(fileURLToPath(import.meta.url)), '..', 'data');
 const DATA_FILE = join(DATA_DIR, 'rooms.json');
 const ROOM_TTL_MS = 24 * 60 * 60 * 1000;
 

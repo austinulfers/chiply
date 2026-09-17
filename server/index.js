@@ -13,6 +13,9 @@ import {
 } from './game.js';
 
 const PORT = process.env.PORT || 3000;
+// The VPS unit sets HOST=127.0.0.1 so only nginx can reach the port. Left unset,
+// the server listens on every interface so phones on the same Wi-Fi can join.
+const HOST = process.env.HOST;
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 load();
@@ -23,7 +26,8 @@ app.use(express.static(join(ROOT, 'public')));
 app.get('/healthz', (_req, res) => res.json({ ok: true, rooms: rooms.size }));
 
 const server = createServer(app);
-const wss = new WebSocketServer({ server, path: '/ws' });
+// Every client message is a small JSON command; ws would otherwise buffer up to 100 MiB.
+const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 16 * 1024 });
 
 // code -> Map<playerId, ws>
 const sockets = new Map();
@@ -396,6 +400,6 @@ setInterval(() => {
   }
 }, 30_000);
 
-server.listen(PORT, () => {
-  console.log(`Chiply running at http://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`Chiply running at http://${HOST ?? 'localhost'}:${PORT}`);
 });
