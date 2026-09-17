@@ -1,0 +1,46 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Serialize deploys rather than cancelling them — a cancelled deploy can leave
+# the checkout mid-reset.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # Match the box (`node --version` on offhourslab), not the newest LTS.
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/chiply
+            git fetch --all
+            git reset --hard origin/main
+            npm install --omit=dev --no-audit --no-fund
+            # deploy-chiply owns the checkout; the chiply service account only
+            # reads it via the group. Restart is the one privileged action, and
+            # sudoers scopes it to this unit alone (see deploy/setup-chiply.sh).
+            sudo systemctl restart chiply
+            sudo systemctl is-active chiply
